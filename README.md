@@ -12,7 +12,7 @@ A client-side Angular application for visualizing and analyzing energy trading b
 - **Drag-and-drop upload** — simple file upload with inline validation
 - **Fully client-side** — no data is sent to any server
 - **Sample data included** — try `sample_strategy.csv` (5 days of German power data) with zero setup
-- **Docker ready** — single-command deployment with Docker Compose
+
 
 ## Demo
 
@@ -64,7 +64,7 @@ The granularity detector samples the first 50 timestamps to classify data:
 ### Prerequisites
 
 ```bash
-# Add to /etc/hosts for the proxy URL to work:
+# Optional — for the reverse proxy URL to work:
 echo '127.0.0.1 energy-viz.localhost' | sudo tee -a /etc/hosts
 ```
 
@@ -73,8 +73,10 @@ echo '127.0.0.1 energy-viz.localhost' | sudo tee -a /etc/hosts
 ```bash
 npm install
 npm start                        # dev server on port 8765
-docker compose -f docker-compose.dev.yml up   # proxy on port 80 → dev server
-# → http://energy-viz.localhost  (with live reload)
+# → http://localhost:8765
+
+# Optional: reverse proxy on port 80 (run in a second terminal)
+npm run proxy                    # → http://energy-viz.localhost
 ```
 
 ### Production Build
@@ -83,18 +85,10 @@ docker compose -f docker-compose.dev.yml up   # proxy on port 80 → dev server
 npm run build        # outputs to dist/
 ```
 
-### Docker (Production)
+### Production Build
 
 ```bash
-docker compose up --build   # proxy on port 80 → nginx on 8765
-# → http://energy-viz.localhost
-```
-
-Or build manually:
-
-```bash
-docker build -t energy-backtest-visualizer .
-docker run -p 8765:8765 energy-backtest-visualizer
+npm run build   # outputs to dist/
 ```
 
 ## Usage
@@ -141,13 +135,14 @@ src/
 | CSV / Excel | xlsx |
 | Parquet | parquet-wasm + apache-arrow IPC |
 | State | Angular signals (`signal`, `computed`) |
-| Packaging | Docker + nginx (multi-stage, WASM gzip) |
+| Packaging | Static files (`dist/`) |
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
 | `npm start` | Start development server on `:8765` |
+| `npm run proxy` | Reverse proxy `:80` → `:8765` (run in separate terminal) |
 | `npm run build` | Production build (outputs to `dist/`) |
 | `npm run watch` | Dev build with watch mode |
 
