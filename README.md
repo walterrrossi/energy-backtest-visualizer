@@ -61,11 +61,20 @@ The granularity detector samples the first 50 timestamps to classify data:
 
 ## Quick Start
 
+### Prerequisites
+
+```bash
+# Add to /etc/hosts for the proxy URL to work:
+echo '127.0.0.1 energy-viz.localhost' | sudo tee -a /etc/hosts
+```
+
 ### Development
 
 ```bash
 npm install
-npm start            # serves at http://localhost:4200
+npm start                        # dev server on port 8765
+docker compose -f docker-compose.dev.yml up   # proxy on port 80 → dev server
+# → http://energy-viz.localhost  (with live reload)
 ```
 
 ### Production Build
@@ -74,17 +83,18 @@ npm start            # serves at http://localhost:4200
 npm run build        # outputs to dist/
 ```
 
-### Docker
+### Docker (Production)
 
 ```bash
-docker-compose up -d   # serves at http://localhost:80
+docker compose up --build   # proxy on port 80 → nginx on 8765
+# → http://energy-viz.localhost
 ```
 
 Or build manually:
 
 ```bash
 docker build -t energy-backtest-visualizer .
-docker run -p 80:80 energy-backtest-visualizer
+docker run -p 8765:8765 energy-backtest-visualizer
 ```
 
 ## Usage
@@ -137,7 +147,7 @@ src/
 
 | Command | Description |
 |---------|-------------|
-| `npm start` | Start development server on `:4200` |
+| `npm start` | Start development server on `:8765` |
 | `npm run build` | Production build (outputs to `dist/`) |
 | `npm run watch` | Dev build with watch mode |
 
