@@ -10,5 +10,5 @@ RUN npm run build
 FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/energy-backtest-visualizer/browser /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8765
 CMD ["nginx", "-g", "daemon off;"]
