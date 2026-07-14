@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+body {
+  @apply bg-surface text-slate-100 font-mono;
+}
+
+.dropzone-active {
+  @apply border-positive bg-positive/10;
+}
+
+.chart-container {
+  @apply relative w-full h-full min-h-[200px];
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
