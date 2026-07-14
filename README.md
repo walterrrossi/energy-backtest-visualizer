@@ -11,11 +11,12 @@ A client-side Angular application for visualizing and analyzing energy trading b
 - **P&L inversion toggle** — switch long/short sign convention without re-uploading
 - **Drag-and-drop upload** — simple file upload with inline validation
 - **Fully client-side** — no data is sent to any server
+- **Sample data included** — try `sample_strategy.csv` (5 days of German power data) with zero setup
 - **Docker ready** — single-command deployment with Docker Compose
 
 ## Demo
 
-> Drop a `.csv`, `.xlsx`, or `.parquet` backtest file onto the upload panel. The dashboard renders KPI cards, an equity curve, and breakdown charts within milliseconds.
+> Drop a `.csv`, `.xlsx`, or `.parquet` backtest file onto the upload panel. The dashboard renders KPI cards, an equity curve, and breakdown charts within milliseconds. Or load the bundled `sample_strategy.csv` to explore immediately.
 
 ## File Format
 
@@ -103,46 +104,50 @@ src/
     │   ├── charts/
     │   │   ├── equity-curve.component.ts          # Cumulative P&L line chart
     │   │   ├── pnl-breakdown.component.ts          # Hourly & monthly P&L bar charts
-    │   │   └── long-short-analysis.component.ts    # Long vs short metrics + day-of-week bar chart
+    │   │   └── long-short-analysis.component.ts    # Long vs short by day of week
     │   ├── inbound-panel/
-    │   │   └── inbound-panel.component.ts          # Drag-and-drop file upload + validation
+    │   │   └── inbound-panel.component.ts          # Drag-and-drop upload, parse, validate
     │   └── kpi-cards/
-    │       └── kpi-cards.component.ts              # KPI metric cards
+    │       └── kpi-cards.component.ts              # KPI metric cards (5 total)
     ├── models/
-    │   └── backtest.models.ts                      # TypeScript interfaces & types
+    │   └── backtest.models.ts                      # BacktestRow, BacktestDataset, MetricsResult, etc.
     ├── services/
     │   ├── file-parser.service.ts                  # CSV / XLSX / Parquet parsing
-    │   ├── granularity-detector.service.ts         # Auto-detect data granularity
+    │   ├── granularity-detector.service.ts         # Auto-detect hourly/half-hourly/quarter-hourly
     │   ├── metrics-engine.service.ts               # P&L and KPI computation
     │   ├── schema-validator.service.ts             # Column & row-level validation
-    │   └── state.service.ts                        # Reactive state management
-    ├── app.ts                                      # Root standalone component
-    └── app.config.ts                               # Angular application config
+    │   └── state.service.ts                        # Central signal store (dataset + metrics)
+    ├── app.ts                                      # Root layout component
+    └── app.config.ts                               # Application config / providers
 ```
 
 ## Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Angular 22 (standalone components) |
-| Charts | Chart.js 4 via ng2-charts |
-| Styling | Tailwind CSS 3 |
-| CSV/Excel | xlsx |
-| Parquet | parquet-wasm + apache-arrow |
-| State | Angular signals |
-| Packaging | Docker + nginx (production) |
+| Framework | Angular 22 (standalone components, OnPush) |
+| Charts | Chart.js 4.5 via ng2-charts 10 |
+| Styling | Tailwind CSS 3.4 (dark mode only) |
+| CSV / Excel | xlsx |
+| Parquet | parquet-wasm + apache-arrow IPC |
+| State | Angular signals (`signal`, `computed`) |
+| Packaging | Docker + nginx (multi-stage, WASM gzip) |
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
 | `npm start` | Start development server on `:4200` |
-| `npm run build` | Production build |
+| `npm run build` | Production build (outputs to `dist/`) |
 | `npm run watch` | Dev build with watch mode |
 
 ## Browser Support
 
 Chrome 90+, Firefox 88+, Safari 14+, Edge 90+.
+
+## Sample Data
+
+A `sample_strategy.csv` is bundled in the repo root — 120 rows of hourly German power backtest data spanning 5 days (DE, DE-LU zone, base_peak_spread strategy). Drop it onto the upload panel to see the dashboard in action without preparing your own file.
 
 ## Limitations
 
@@ -153,4 +158,4 @@ Chrome 90+, Firefox 88+, Safari 14+, Edge 90+.
 
 ## License
 
-Private.
+MIT.
