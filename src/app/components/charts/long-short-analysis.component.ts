@@ -1,6 +1,7 @@
 import { Component, computed } from '@angular/core';
 import { BaseChartDirective } from 'ng2-charts';
 import { StateService } from '../../services/state.service';
+import { formatCurrency } from '../../shared/formatting/metric-formatters';
 
 @Component({
   selector: 'app-long-short-analysis',
@@ -46,13 +47,13 @@ export class LongShortAnalysisComponent {
   shortPct = computed(() => { const m = this.metrics(); return m ? Number(m.shortFrequency.pct.toFixed(1)) : 0; });
 
   dayData = computed(() => {
-    const m = this.metrics();
-    if (!m) return { labels: [], datasets: [] };
+    const performance = this.state.analysis()?.performance;
+    if (!performance) return { labels: [], datasets: [] };
     return {
-      labels: m.longPnlByDay.map(d => d.label),
+      labels: performance.longPnlByDay.map(d => d.label),
       datasets: [
-        { label: 'Long', data: m.longPnlByDay.map(d => Number(d.value.toFixed(2))), backgroundColor: '#14b8a6', borderRadius: 3 },
-        { label: 'Short', data: m.shortPnlByDay.map(d => Number(d.value.toFixed(2))), backgroundColor: '#f43f5e', borderRadius: 3 },
+        { label: 'Long', data: performance.longPnlByDay.map(d => Number(d.value.toFixed(2))), backgroundColor: '#14b8a6', borderRadius: 3 },
+        { label: 'Short', data: performance.shortPnlByDay.map(d => Number(d.value.toFixed(2))), backgroundColor: '#f43f5e', borderRadius: 3 },
       ],
     };
   });
@@ -60,7 +61,7 @@ export class LongShortAnalysisComponent {
   barOptions = computed(() => {
     const cb = (tickValue: string | number) => {
       const v = typeof tickValue === 'number' ? tickValue : parseFloat(tickValue);
-      return '€' + v.toLocaleString();
+      return formatCurrency(v, 0, true);
     };
     return {
       responsive: true,

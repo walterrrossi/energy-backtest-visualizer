@@ -35,8 +35,12 @@ A client-side Angular application for visualizing and analyzing energy trading b
 | Column | Description |
 |--------|-------------|
 | `zone` | Bidding zone |
+| `currency` | Dataset currency (defaults to EUR) |
+| `timezone` | Market timezone metadata |
+| `probability`, `prediction`, `confidence`, `target` | Optional signal fields |
+| `costs`, `slippage`, `executed_qty_mw` | Optional execution fields |
 
-> **Note**: All column names are case-insensitive. Files must contain exactly one country; validation will reject rows with mismatched country values.
+> **Note**: All column names are case-insensitive. Multiple countries are supported in the canonical dataset model and are listed in the imported dataset metadata.
 
 ### Granularity
 
@@ -55,9 +59,11 @@ The granularity detector samples the first 50 timestamps to classify data:
 | **Total P&L** | Sum of all trade P&L (€) |
 | **€ / MWh** | Total P&L ÷ absolute traded volume |
 | **Hit Rate** | Percentage of active trades with positive P&L |
-| **Sharpe Ratio** | Annualized risk-adjusted return |
+| **Sharpe Ratio** | Annualized risk-adjusted return using daily returns by default; the selected convention is shown in the dashboard |
 | **Coverage** | Percentage of time intervals with an active position |
 | **Long / Short Frequency** | Distribution of long vs short positions |
+| **Maximum Drawdown** | Largest decline from a cumulative-P&L peak |
+| **Sortino Ratio** | Annualized return divided by downside deviation |
 
 ## Quick Start
 
@@ -104,6 +110,13 @@ npm run build   # outputs to dist/
 ```
 src/
 └── app/
+    ├── analytics/
+    │   ├── pnl/                                      # Row enrichment and P&L selection
+    │   ├── performance/                              # Daily and rolling metrics
+    │   ├── risk/                                     # Sharpe, Sortino, drawdown, risk metrics
+    │   └── segmentation/                             # Generic performance grouping
+    ├── core/
+    │   └── normalization/                            # Column mapping and canonical row normalization
     ├── components/
     │   ├── charts/
     │   │   ├── equity-curve.component.ts          # Cumulative P&L line chart
@@ -114,7 +127,7 @@ src/
     │   └── kpi-cards/
     │       └── kpi-cards.component.ts              # KPI metric cards (5 total)
     ├── models/
-    │   └── backtest.models.ts                      # BacktestRow, BacktestDataset, MetricsResult, etc.
+    │   └── backtest.models.ts                      # Canonical rows, datasets, analysis results, diagnostics
     ├── services/
     │   ├── file-parser.service.ts                  # CSV / XLSX / Parquet parsing
     │   ├── granularity-detector.service.ts         # Auto-detect hourly/half-hourly/quarter-hourly
@@ -145,6 +158,10 @@ src/
 | `npm run proxy` | Reverse proxy `:80` → `:8765` (run in separate terminal) |
 | `npm run build` | Production build (outputs to `dist/`) |
 | `npm run watch` | Dev build with watch mode |
+| `npm test` | Run deterministic unit tests once |
+| `npm run test:watch` | Run unit tests in watch mode |
+| `npm run typecheck` | Run TypeScript validation |
+| `npm run check` | Run typecheck, tests, and production build |
 
 ## Browser Support
 

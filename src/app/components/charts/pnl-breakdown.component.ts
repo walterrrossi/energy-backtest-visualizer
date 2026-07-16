@@ -1,6 +1,7 @@
 import { Component, computed } from '@angular/core';
 import { BaseChartDirective } from 'ng2-charts';
 import { StateService } from '../../services/state.service';
+import { formatCurrency } from '../../shared/formatting/metric-formatters';
 
 @Component({
   selector: 'app-pnl-breakdown',
@@ -31,25 +32,25 @@ export class PnlBreakdownComponent {
   private months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   hourData = computed(() => {
-    const m = this.state.metrics();
-    if (!m) return { labels: [], datasets: [] };
+    const performance = this.state.analysis()?.performance;
+    if (!performance) return { labels: [], datasets: [] };
     return {
-      labels: m.pnlByHour.map(h => String(h.hour)),
+      labels: performance.pnlByHour.map(h => String(h.hour)),
       datasets: [
-        { label: 'Long', data: m.pnlByHour.map(h => Number(h.long.toFixed(2))), backgroundColor: '#14b8a6', borderRadius: 3 },
-        { label: 'Short', data: m.pnlByHour.map(h => Number(h.short.toFixed(2))), backgroundColor: '#f43f5e', borderRadius: 3 },
+        { label: 'Long', data: performance.pnlByHour.map(h => Number(h.long.toFixed(2))), backgroundColor: '#14b8a6', borderRadius: 3 },
+        { label: 'Short', data: performance.pnlByHour.map(h => Number(h.short.toFixed(2))), backgroundColor: '#f43f5e', borderRadius: 3 },
       ],
     };
   });
 
   monthData = computed(() => {
-    const m = this.state.metrics();
-    if (!m) return { labels: [], datasets: [] };
+    const performance = this.state.analysis()?.performance;
+    if (!performance) return { labels: [], datasets: [] };
     return {
-      labels: m.pnlByMonth.map(h => this.months[h.month]),
+      labels: performance.pnlByMonth.map(h => this.months[h.month]),
       datasets: [
-        { label: 'Long', data: m.pnlByMonth.map(h => Number(h.long.toFixed(2))), backgroundColor: '#14b8a6', borderRadius: 3 },
-        { label: 'Short', data: m.pnlByMonth.map(h => Number(h.short.toFixed(2))), backgroundColor: '#f43f5e', borderRadius: 3 },
+        { label: 'Long', data: performance.pnlByMonth.map(h => Number(h.long.toFixed(2))), backgroundColor: '#14b8a6', borderRadius: 3 },
+        { label: 'Short', data: performance.pnlByMonth.map(h => Number(h.short.toFixed(2))), backgroundColor: '#f43f5e', borderRadius: 3 },
       ],
     };
   });
@@ -57,7 +58,7 @@ export class PnlBreakdownComponent {
   barOptions = computed(() => {
     const cb = (tickValue: string | number) => {
       const v = typeof tickValue === 'number' ? tickValue : parseFloat(tickValue);
-      return '€' + v.toLocaleString();
+      return formatCurrency(v, 0, true);
     };
     return {
       responsive: true,

@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
-import type { ValidationError } from '../models/backtest.models';
+import type { ColumnMapping, ValidationError } from '../models/backtest.models';
 
-const REQUIRED_COLS = ['datetime', 'country', 'strategy_tag', 'spread'];
 const POSITION_ALIASES = ['qty_mw', 'position'];
 const MAX_ROW_ERRORS = 10;
 
 @Injectable({ providedIn: 'root' })
 export class SchemaValidatorService {
-  validate(rows: Record<string, string>[]): ValidationError[] {
+  validate(rows: Record<string, string>[], mapping?: Partial<ColumnMapping>): ValidationError[] {
     const errors: ValidationError[] = [];
     if (rows.length === 0) {
       errors.push({ field: 'file', message: 'File contains no data rows' });
@@ -15,47 +14,44 @@ export class SchemaValidatorService {
     }
 
     const cols = Object.keys(rows[0]).map(c => c.toLowerCase());
+    const datetimeKey = mapping?.datetime ?? 'datetime';
+    const countryKey = mapping?.country ?? 'country';
+    const strategyKey = mapping?.strategyTag ?? 'strategy_tag';
+    const spreadKey = mapping?.spread ?? 'spread';
 
-    for (const required of REQUIRED_COLS) {
-      if (!cols.includes(required)) {
-        errors.push({ field: required, message: `Missing required column: "${required}"` });
+    for (const [field, key] of [
+      ['datetime', datetimeKey],
+      ['country', countryKey],
+      ['strategy_tag', strategyKey],
+      ['spread', spreadKey],
+    ] as const) {
+      if (!cols.includes(key.toLowerCase())) {
+        errors.push({ field, message: `Missing required column: "${key}"` });
       }
     }
 
-    const hasPosition = POSITION_ALIASES.some(a => cols.includes(a));
+    const mappedPosition = mapping?.quantityMw;
+    const hasPosition = mappedPosition ? cols.includes(mappedPosition.toLowerCase()) : POSITION_ALIASES.some(a => cols.includes(a));
     if (!hasPosition) {
       errors.push({
         field: 'qty_mw',
-        message: `Missing position column. Expected one of: ${POSITION_ALIASES.map(a => `"${a}"`).join(', ')}`,
+        message: mappedPosition
+          ? `Missing position column: "${mappedPosition}"`
+          : `Missing position column. Expected one of: ${POSITION_ALIASES.map(a => `"${a}"`).join(', ')}`,
       });
     }
 
-    const positionKey = POSITION_ALIASES.find(a => cols.includes(a)) || 'qty_mw';
+    const positionKey = mappedPosition || POSITION_ALIASES.find(a => cols.includes(a)) || 'qty_mw';
 
-    let country: string | null = null;
     let rowErrorCount = 0;
     let truncated = false;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      if (row['datetime'] == null || row['datetime'].trim() === '') {
+      if (row[datetimeKey] == null || row[datetimeKey].trim() === '') {
         if (rowErrorCount < MAX_ROW_ERRORS) {
           errors.push({ field: 'datetime', message: 'Empty datetime value', row: i + 2 });
-        }
-        rowErrorCount++;
-      }
-
-      const rowCountry = row['country']?.trim();
-      if (country === null && rowCountry) {
-        country = rowCountry;
-      } else if (rowCountry && rowCountry !== country) {
-        if (rowErrorCount < MAX_ROW_ERRORS) {
-          errors.push({
-            field: 'country',
-            message: `Multiple countries detected: "${country}" and "${rowCountry}". Single file must have one country.`,
-            row: i + 2,
-          });
         }
         rowErrorCount++;
       }
@@ -68,10 +64,10 @@ export class SchemaValidatorService {
         rowErrorCount++;
       }
 
-      const spreadVal = parseFloat(row['spread']);
+      const spreadVal = parseFloat(row[spreadKey]);
       if (isNaN(spreadVal)) {
         if (rowErrorCount < MAX_ROW_ERRORS) {
-          errors.push({ field: 'spread', message: `Invalid numeric value: "${row['spread']}"`, row: i + 2 });
+          errors.push({ field: spreadKey, message: `Invalid numeric value: "${row[spreadKey]}"`, row: i + 2 });
         }
         rowErrorCount++;
       }

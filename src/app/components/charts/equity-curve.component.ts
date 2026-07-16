@@ -1,6 +1,7 @@
 import { Component, computed } from '@angular/core';
 import { BaseChartDirective } from 'ng2-charts';
 import { StateService } from '../../services/state.service';
+import { formatCurrency, formatUtcDate } from '../../shared/formatting/metric-formatters';
 
 @Component({
   selector: 'app-equity-curve',
@@ -23,17 +24,17 @@ export class EquityCurveComponent {
   constructor(private state: StateService) {}
 
   chartData = computed(() => {
-    const m = this.state.metrics();
-    if (!m) return { labels: [], datasets: [] };
+    const performance = this.state.analysis()?.performance;
+    if (!performance) return { labels: [], datasets: [] };
 
     return {
-      labels: m.cumulativePnl.map(p => {
+      labels: performance.cumulativePnl.map(p => {
         const d = p.date;
-        return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+        return formatUtcDate(d);
       }),
       datasets: [{
         label: 'Cumulative P&L (€)',
-        data: m.cumulativePnl.map(p => Number(p.value.toFixed(2))),
+        data: performance.cumulativePnl.map(p => Number(p.value.toFixed(2))),
         borderColor: '#14b8a6',
         backgroundColor: 'rgba(20,184,166,0.08)',
         fill: true,
@@ -47,7 +48,7 @@ export class EquityCurveComponent {
   chartOptions = computed(() => {
     const cb = (tickValue: string | number) => {
       const v = typeof tickValue === 'number' ? tickValue : parseFloat(tickValue);
-      return '€' + v.toLocaleString();
+      return formatCurrency(v, 0, true);
     };
     return {
       responsive: true,

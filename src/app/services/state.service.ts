@@ -1,16 +1,18 @@
 import { Injectable, computed, signal } from '@angular/core';
-import type { BacktestDataset } from '../models/backtest.models';
-import type { MetricsResult } from '../models/backtest.models';
+import { DEFAULT_ANALYSIS_SETTINGS } from '../models/backtest.models';
+import type { AnalysisSettings, BacktestAnalysis, BacktestDataset, SummaryMetrics } from '../models/backtest.models';
 import { MetricsEngineService } from './metrics-engine.service';
 
 @Injectable({ providedIn: 'root' })
 export class StateService {
   dataset = signal<BacktestDataset | null>(null);
-  metrics = computed<MetricsResult | null>(() => {
+  analysisSettings = signal<AnalysisSettings>({ ...DEFAULT_ANALYSIS_SETTINGS });
+  analysis = computed<BacktestAnalysis | null>(() => {
     const d = this.dataset();
     if (!d) return null;
-    return this.engine.compute(d);
+    return this.engine.compute(d, this.analysisSettings());
   });
+  metrics = computed<SummaryMetrics | null>(() => this.analysis()?.summary ?? null);
 
   hasData = computed(() => this.dataset() !== null);
 
@@ -18,6 +20,10 @@ export class StateService {
 
   setDataset(ds: BacktestDataset) {
     this.dataset.set(ds);
+  }
+
+  setAnalysisSettings(settings: Partial<AnalysisSettings>) {
+    this.analysisSettings.update(current => ({ ...current, ...settings }));
   }
 
   clear() {

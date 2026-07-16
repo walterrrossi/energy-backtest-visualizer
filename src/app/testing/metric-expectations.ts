@@ -1,0 +1,20 @@
+export const hourlyMetricExpectations = {
+  totalPnl: 15,
+  efficiencyEuroPerMwh: 1.875,
+  longFrequency: { count: 2, pct: 40 },
+  shortFrequency: { count: 2, pct: 40 },
+  coverage: 80,
+  hitRate: 50,
+  longPnl: 8,
+  shortPnl: 7,
+  totalVolumeMwh: 2,
+  totalAbsVolumeMwh: 8,
+  pnlByHour: [
+    { hour: 0, long: 8, short: 0, total: 8 },
+    { hour: 1, long: 0, short: 7, total: 7 },
+    { hour: 2, long: 0, short: 0, total: 0 },
+  ],
+  pnlByMonth: [{ month: 0, long: 8, short: 7, total: 15 }],
+  longPnlByDay: [20, -12, 0, 0, 0, 0, 0],
+  shortPnlByDay: [-5, 12, 0, 0, 0, 0, 0],
+} as const;

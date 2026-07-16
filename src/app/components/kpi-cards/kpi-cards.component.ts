@@ -1,5 +1,6 @@
 import { Component, computed } from '@angular/core';
 import { StateService } from '../../services/state.service';
+import { formatCurrency, formatMetric, formatMwh, formatPercentage } from '../../shared/formatting/metric-formatters';
 
 @Component({
   selector: 'app-kpi-cards',
@@ -27,38 +28,36 @@ export class KpiCardsComponent {
     const m = this.state.metrics();
     if (!m) return [];
 
-    const fmt = (v: number, d: number = 2) => v.toFixed(d);
-
     return [
       {
         label: 'Total P&L',
-        value: `€${fmt(m.totalPnl, 0)}`,
+        value: formatCurrency(m.totalPnl, 0),
         color: m.totalPnl >= 0 ? 'positive' : 'negative',
         sub: undefined,
       },
       {
         label: '€ / MWh',
-        value: fmt(m.efficiencyEuroPerMwh, 2),
+        value: formatMetric(m.efficiencyEuroPerMwh, 2),
         color: m.efficiencyEuroPerMwh >= 0 ? 'positive' : 'negative',
-        sub: `${fmt(m.totalAbsVolumeMwh, 0)} MWh volume`,
+        sub: `${formatMwh(m.totalAbsVolumeMwh, 0)} volume`,
       },
       {
         label: 'Hit Rate',
-        value: `${fmt(m.hitRate, 1)}%`,
+        value: formatPercentage(m.hitRate, 1),
         color: m.hitRate >= 50 ? 'positive' : 'negative',
         sub: undefined,
       },
       {
         label: 'Sharpe Ratio',
-        value: fmt(m.sharpeRatio, 2),
+        value: formatMetric(m.sharpeRatio, 2),
         color: m.sharpeRatio >= 0 ? 'positive' : 'negative',
-        sub: 'annualized',
+        sub: `${this.state.analysisSettings().returnAggregation} annualized`,
       },
       {
         label: 'Coverage',
-        value: `${fmt(m.coverage, 1)}%`,
+        value: formatPercentage(m.coverage, 1),
         color: 'neutral',
-        sub: `${m.longFrequency.pct.toFixed(1)}% long / ${m.shortFrequency.pct.toFixed(1)}% short`,
+        sub: `${formatPercentage(m.longFrequency.pct, 1)} long / ${formatPercentage(m.shortFrequency.pct, 1)} short`,
       },
     ];
   });

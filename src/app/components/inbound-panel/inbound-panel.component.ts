@@ -2,10 +2,11 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FileParserService } from '../../services/file-parser.service';
 import { SchemaValidatorService } from '../../services/schema-validator.service';
-import { GranularityDetectorService } from '../../services/granularity-detector.service';
-import { MetricsEngineService } from '../../services/metrics-engine.service';
+import { BacktestNormalizerService } from '../../core/normalization/backtest-normalizer.service';
 import { StateService } from '../../services/state.service';
-import type { BacktestDataset, BacktestRow, ValidationError } from '../../models/backtest.models';
+import { ColumnMapperService } from '../../core/normalization/column-mapper.service';
+import type { ColumnMapping, DataDiagnostic, ValidationError } from '../../models/backtest.models';
+import type { ColumnMappingAmbiguity } from '../../core/normalization/column-mapper.service';
 
 @Component({
   selector: 'app-inbound-panel',
@@ -63,11 +64,61 @@ import type { BacktestDataset, BacktestRow, ValidationError } from '../../models
       </div>
     }
 
+    @if (warnings().length > 0) {
+      <div class="mt-3 p-3 rounded-lg bg-amber-900/20 border border-amber-800/50">
+        <p class="text-amber-400 font-medium text-sm mb-1">Data Quality Notes:</p>
+        <ul class="text-amber-300 text-xs space-y-0.5">
+          @for (warning of warnings(); track warning.code + warning.row) {
+            <li>&bull; {{ warning.message }}{{ warning.row ? ' (row ' + warning.row + ')' : '' }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (mappingReview(); as review) {
+      <div class="mt-3 p-3 rounded-lg bg-sky-900/20 border border-sky-800/50 text-left">
+        <p class="text-sky-300 font-medium text-sm mb-2">Confirm ambiguous column mappings</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          @for (ambiguity of review.ambiguities; track ambiguity.field) {
+            <label class="flex items-center justify-between gap-2 text-xs text-slate-300">
+              <span>{{ ambiguity.field }}</span>
+              <select [value]="review.mapping[ambiguity.field]" (change)="updateMapping(ambiguity.field, $any($event.target).value)"
+                class="rounded border-slate-600 bg-slate-700 text-slate-300 text-xs">
+                @for (candidate of ambiguity.candidates; track candidate) {
+                  <option [value]="candidate">{{ candidate }}</option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+        <button class="mt-3 rounded bg-sky-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-600" (click)="applyMapping()">
+          Apply mappings
+        </button>
+      </div>
+    }
+
     <div class="mt-4 flex items-center gap-3">
       <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" [checked]="engine.invertPnl()" (change)="toggleInvert()"
+        <input type="checkbox" [checked]="state.analysisSettings().invertPnl" (change)="toggleInvert()"
           class="rounded border-slate-600 bg-slate-700 text-positive focus:ring-positive/50" />
         <span class="text-xs text-slate-400">Invert P&amp;L sign (Short = positive)</span>
+      </label>
+      <label class="flex items-center gap-2 text-xs text-slate-400">
+        <span>P&amp;L:</span>
+        <select [value]="state.analysisSettings().pnlMode" (change)="setPnlMode($any($event.target).value)"
+          class="rounded border-slate-600 bg-slate-700 text-slate-300 text-xs">
+          <option value="gross">Gross</option>
+          <option value="net">Net</option>
+        </select>
+      </label>
+      <label class="flex items-center gap-2 text-xs text-slate-400">
+        <span>Returns:</span>
+        <select [value]="state.analysisSettings().returnAggregation" (change)="setReturnAggregation($any($event.target).value)"
+          class="rounded border-slate-600 bg-slate-700 text-slate-300 text-xs">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="interval">Interval</option>
+        </select>
       </label>
     </div>
   `,
@@ -79,13 +130,20 @@ export class InboundPanelComponent {
   rowCount = signal(0);
   granularity = signal('');
   errors = signal<ValidationError[]>([]);
+  warnings = signal<DataDiagnostic[]>([]);
+  mappingReview = signal<{
+    rows: Record<string, string>[];
+    fileName: string;
+    mapping: Partial<ColumnMapping>;
+    ambiguities: ColumnMappingAmbiguity[];
+  } | null>(null);
 
   constructor(
     private fileParser: FileParserService,
     private validator: SchemaValidatorService,
-    private granularityDetector: GranularityDetectorService,
-    protected engine: MetricsEngineService,
-    private state: StateService,
+    private normalizer: BacktestNormalizerService,
+    private columnMapper: ColumnMapperService,
+    protected state: StateService,
   ) {}
 
   onDragEnter(e: DragEvent) {
@@ -122,7 +180,33 @@ export class InboundPanelComponent {
   }
 
   toggleInvert() {
-    this.engine.invertPnl.set(!this.engine.invertPnl());
+    this.state.setAnalysisSettings({ invertPnl: !this.state.analysisSettings().invertPnl });
+  }
+
+  setPnlMode(mode: 'gross' | 'net') {
+    this.state.setAnalysisSettings({ pnlMode: mode });
+  }
+
+  setReturnAggregation(returnAggregation: 'interval' | 'daily' | 'weekly') {
+    this.state.setAnalysisSettings({ returnAggregation });
+  }
+
+  updateMapping(field: keyof ColumnMapping, value: string) {
+    this.mappingReview.update(review => review ? { ...review, mapping: { ...review.mapping, [field]: value } } : review);
+  }
+
+  applyMapping() {
+    const review = this.mappingReview();
+    if (!review) return;
+    this.mappingReview.set(null);
+    this.isLoading.set(true);
+    try {
+      this.importRows(review.rows, review.fileName, review.mapping);
+    } catch (err) {
+      this.errors.set([{ field: 'file', message: (err as Error).message }]);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   clear() {
@@ -130,12 +214,15 @@ export class InboundPanelComponent {
     this.rowCount.set(0);
     this.granularity.set('');
     this.errors.set([]);
+    this.warnings.set([]);
+    this.mappingReview.set(null);
     this.state.clear();
   }
 
   private async processFile(file: File) {
     this.isLoading.set(true);
     this.errors.set([]);
+    this.warnings.set([]);
     this.fileName.set('');
 
     try {
@@ -148,46 +235,17 @@ export class InboundPanelComponent {
         }]);
       }
 
-      const validationErrors = this.validator.validate(parsed.rows);
-      if (validationErrors.length > 0) {
-        this.errors.set(validationErrors);
-        this.isLoading.set(false);
+      const detection = this.columnMapper.detect(parsed.rows);
+      if (detection.ambiguities.length > 0) {
+        this.mappingReview.set({
+          rows: parsed.rows,
+          fileName: file.name,
+          mapping: detection.mapping,
+          ambiguities: detection.ambiguities,
+        });
         return;
       }
-
-      const positionKey = parsed.rows[0]['qty_mw'] !== undefined ? 'qty_mw' : 'position';
-      const zoneKey = parsed.rows[0]['zone'] !== undefined ? 'zone' : null;
-      const country = parsed.rows[0]['country']?.trim() || '';
-
-      const backtestRows: BacktestRow[] = parsed.rows.map(r => ({
-        datetime: this.parseDatetime(r['datetime']),
-        country,
-        zone: zoneKey ? (r[zoneKey]?.trim() || '') : '',
-        strategyTag: r['strategy_tag']?.trim() || '',
-        qtyMw: parseFloat(r[positionKey]),
-        spread: parseFloat(r['spread']),
-      }));
-
-      const datetimes = backtestRows.map(r => r.datetime);
-      const gran = this.granularityDetector.detect(datetimes);
-
-      const zones = [...new Set(backtestRows.map(r => r.zone).filter(Boolean))];
-      const strategyTags = [...new Set(backtestRows.map(r => r.strategyTag).filter(Boolean))];
-
-      const dataset: BacktestDataset = {
-        rows: backtestRows,
-        granularity: gran,
-        country,
-        zones,
-        strategyTags,
-        fileName: file.name,
-        rawRowCount: parsed.rows.length,
-      };
-
-      this.state.setDataset(dataset);
-      this.fileName.set(file.name);
-      this.rowCount.set(backtestRows.length);
-      this.granularity.set(gran);
+      this.importRows(parsed.rows, file.name, detection.mapping);
     } catch (err) {
       this.errors.set([{ field: 'file', message: (err as Error).message }]);
     } finally {
@@ -195,15 +253,29 @@ export class InboundPanelComponent {
     }
   }
 
-  private parseDatetime(raw: string): Date {
-    raw = raw.trim();
-    if (raw.endsWith('Z')) return new Date(raw);
-    if (/[+-]\d{2}:\d{2}$/.test(raw)) return new Date(raw);
-    if (/[+-]\d{4}$/.test(raw)) {
-      const tz = raw.slice(-5);
-      return new Date(raw.slice(0, -5) + tz.slice(0, 3) + ':' + tz.slice(3));
+  private importRows(rows: Record<string, string>[], fileName: string, mapping: Partial<ColumnMapping>) {
+    const validationErrors = this.validator.validate(rows, mapping);
+    if (validationErrors.length > 0) {
+      this.errors.set(validationErrors);
+      return;
     }
-    const iso = raw.replace(' ', 'T');
-    return new Date(iso);
+
+    const normalized = this.normalizer.normalize(rows, mapping, fileName);
+    this.state.setDataset({
+      id: `${fileName}:${Date.now()}`,
+      name: fileName,
+      fileName,
+      importedAt: new Date(),
+      rows: normalized.rows,
+      rawRowCount: rows.length,
+      metadata: normalized.metadata,
+      mapping: normalized.mapping,
+      qualityReport: normalized.qualityReport,
+    });
+    this.warnings.set(normalized.qualityReport.diagnostics.filter(diagnostic => diagnostic.severity !== 'error'));
+    this.fileName.set(fileName);
+    this.rowCount.set(normalized.rows.length);
+    this.granularity.set(normalized.metadata.granularity);
   }
+
 }
