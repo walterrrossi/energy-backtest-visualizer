@@ -159,6 +159,7 @@ export interface SummaryMetrics {
   sortinoRatio: number;
   annualizedPnl: number;
   annualizedVolatility: number;
+  dailyVolatility: number;
   maximumDrawdown: number;
   currentDrawdown: number;
   drawdownDurationDays: number;
@@ -171,6 +172,15 @@ export interface SummaryMetrics {
   payoffRatio: number;
   bestDay: number;
   worstDay: number;
+  averageWinningDay: number;
+  averageLosingDay: number;
+  positiveDaysPct: number;
+  maxConsecutiveWinDays: number;
+  maxConsecutiveLossDays: number;
+  var95: number;
+  cvar95: number;
+  skewness: number;
+  kurtosis: number;
   topFiveDayConcentration: number;
   topTenDayConcentration: number;
   profitableRollingWindowPercentage: number;
@@ -214,6 +224,7 @@ export interface RiskMetrics {
   recoveryTimeDays: number;
   annualizedPnl: number;
   annualizedVolatility: number;
+  dailyVolatility: number;
   sortinoRatio: number;
   calmarRatio: number;
   profitFactor: number;
@@ -222,6 +233,15 @@ export interface RiskMetrics {
   payoffRatio: number;
   bestDay: number;
   worstDay: number;
+  averageWinningDay: number;
+  averageLosingDay: number;
+  positiveDaysPct: number;
+  maxConsecutiveWinDays: number;
+  maxConsecutiveLossDays: number;
+  var95: number;
+  cvar95: number;
+  skewness: number;
+  kurtosis: number;
   topFiveDayConcentration: number;
   topTenDayConcentration: number;
   profitableRollingWindowPercentage: number;
@@ -283,3 +303,11 @@ export interface ValidationError {
   message: string;
   row?: number;
 }
+
+export interface DatasetFilters {
+  start: Date | null;
+  end: Date | null;
+  zone: string | null;
+}
+
+export const EMPTY_FILTERS: DatasetFilters = { start: null, end: null, zone: null };
